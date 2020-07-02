@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>sem_keypts_dataset_generator</name>
+  <version>0.0.0</version>
+  <description>tool to generate dataset for the semantic keypoints 3D pose estimation network</description>
+
+  <maintainer email="maxim@todo.todo">maxim</maintainer>
+
+
+  <!-- One license tag required, multiple allowed, one license per tag -->
+  <!-- Commonly used license strings: -->
+  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>rospy</depend>
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>tf</depend>
+  <depend>rosbag</depend>
+  <depend>opencv2</depend>
+  <depend>image_transport</depend>
+  <depend>eigen_conversions</depend>
+  <depend>random_numbers</depend>
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+  </export>
+</package>
