@@ -41,5 +41,5 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
 )
 
-add_executable(${PROJECT_NAME}_node src/image_processor_node.cpp src/image_processor.cpp)
+add_executable(${PROJECT_NAME}_node src/dataset_generator_node.cpp src/dataset_generator.cpp)
 target_link_libraries(${PROJECT_NAME}_node ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})

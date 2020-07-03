@@ -210,21 +210,21 @@ namespace image_processor
 		cv::circle(image_full, point, 1 , cv::Scalar(0, 255, 255), 6);
 
 		//Draw keypoints volume
-		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[4], cv::Scalar(100, 100, 0), 0.5);
-		cv::line(image_full, keypoints_camera_frame[1], keypoints_camera_frame[5], cv::Scalar(100, 100, 0), 0.5);
-		cv::line(image_full, keypoints_camera_frame[2], keypoints_camera_frame[6], cv::Scalar(100, 100, 0), 0.5);
-		cv::line(image_full, keypoints_camera_frame[3], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 0.5);
-		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[2], cv::Scalar(100, 100, 0), 0.5);
-		cv::line(image_full, keypoints_camera_frame[1], keypoints_camera_frame[3], cv::Scalar(100, 100, 0), 0.5);
-		cv::line(image_full, keypoints_camera_frame[4], keypoints_camera_frame[6], cv::Scalar(100, 100, 0), 0.5);
-		cv::line(image_full, keypoints_camera_frame[5], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 0.5);
-		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[1], cv::Scalar(100, 100, 0), 0.5);
-		cv::line(image_full, keypoints_camera_frame[2], keypoints_camera_frame[3], cv::Scalar(100, 100, 0), 0.5);
-		cv::line(image_full, keypoints_camera_frame[4], keypoints_camera_frame[5], cv::Scalar(100, 100, 0), 0.5);
-		cv::line(image_full, keypoints_camera_frame[6], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 0.5);
+		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[4], cv::Scalar(100, 100, 0), 3);
+		cv::line(image_full, keypoints_camera_frame[1], keypoints_camera_frame[5], cv::Scalar(100, 100, 0), 3);
+		cv::line(image_full, keypoints_camera_frame[2], keypoints_camera_frame[6], cv::Scalar(100, 100, 0), 3);
+		cv::line(image_full, keypoints_camera_frame[3], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 3);
+		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[2], cv::Scalar(100, 100, 0), 3);
+		cv::line(image_full, keypoints_camera_frame[1], keypoints_camera_frame[3], cv::Scalar(100, 100, 0), 3);
+		cv::line(image_full, keypoints_camera_frame[4], keypoints_camera_frame[6], cv::Scalar(100, 100, 0), 3);
+		cv::line(image_full, keypoints_camera_frame[5], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 3);
+		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[1], cv::Scalar(100, 100, 0), 3);
+		cv::line(image_full, keypoints_camera_frame[2], keypoints_camera_frame[3], cv::Scalar(100, 100, 0), 3);
+		cv::line(image_full, keypoints_camera_frame[4], keypoints_camera_frame[5], cv::Scalar(100, 100, 0), 3);
+		cv::line(image_full, keypoints_camera_frame[6], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 3);
 
 		//Draw bbox
-		cv::rectangle(image_full, cv::Point2d(bbox_xmin, bbox_ymin), cv::Point2d(bbox_xmax, bbox_ymax), cv::Scalar(255,0,0), 0.5);
+		cv::rectangle(image_full, cv::Point2d(bbox_xmin, bbox_ymin), cv::Point2d(bbox_xmax, bbox_ymax), cv::Scalar(255,0,0), 3);
 		
 		//draw keypoints
 		for (int i = 0; i < 8; i++) {

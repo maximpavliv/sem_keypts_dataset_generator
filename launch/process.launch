@@ -5,9 +5,9 @@
   <arg name="root_to_record" default="/home/arpl/drones_automatic_dataset/"/>
   <arg name="image_topic" default="/gaze/image_resized"/>
   <arg name="gt_glasses_odom" default="/vicon/TobiiGlasses/odom"/>
-  <arg name="gt_drone_odom" default="/vicon/DragonFly1/odom"/>
+  <arg name="gt_drone_odom" default="/vicon/DragonFly2/odom"/>
 
-  <node pkg="image_processor" type="image_processor_node" name="image_processor" output="screen">
+  <node pkg="sem_keypts_dataset_generator" type="sem_keypts_dataset_generator_node" name="image_processor" output="screen">
       <remap from="~image" to="$(arg image_topic)"/>
       <remap from="~glasses_odom_topic" to="$(arg gt_glasses_odom)"/>
       <remap from="~drone_odom_topic" to="$(arg gt_drone_odom)"/>
@@ -39,7 +39,7 @@
 
       <param name="boundbox_scale" value="1.0"/>
 
-      <param name="~is_record" value="$(arg is_record)"/>
+      <param name="~to_record" value="$(arg is_record)"/>
       <param name="~record_skip_frames" value="10"/>
       <param name="~root" value="$(arg root_to_record)"/>
   </node>
