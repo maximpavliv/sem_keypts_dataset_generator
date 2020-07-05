@@ -1,4 +1,4 @@
-#include "image_processor/image_processor.h"
+#include "dataset_generator/dataset_generator.h"
 
 int main(int argc, char** argv)
 {

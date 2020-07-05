@@ -46,6 +46,8 @@ namespace image_processor
             ros::NodeHandle nh_;
             ros::NodeHandle nh_priv_;
            
+            std::vector<string> odometry_topics;
+
             // prev and current image ptrs
             cv_bridge::CvImageConstPtr image_ptr_;
             
@@ -76,6 +78,8 @@ namespace image_processor
             message_filters::Subscriber<nav_msgs::Odometry> glasses_odom_sub_;
             message_filters::Subscriber<nav_msgs::Odometry> drone_odom_sub_;
             message_filters::Synchronizer<ApproximateTimePolicy> gt_sync_;
+
+            std::vector<message_filters::Subscriber<nav_msgs::Odometry>> odometry_subs_; //TODO create proper vector of subscribers, subscribe to topics, create buffers, write to buffers from callback
             
             // parameters for images
             int im_height_, im_width_;
@@ -93,7 +97,7 @@ namespace image_processor
             typedef std::pair<nav_msgs::Odometry, nav_msgs::Odometry> GTPair;
             std::vector<GTPair> gt_buffer_;
             void poseGTCallback(const nav_msgs::OdometryConstPtr& glasses_odom,
-                                const nav_msgs::OdometryConstPtr& drone_odom);
+                                const nav_msgs::OdometryConstPtr& drone_main_odom);
             void processImage(const cv_bridge::CvImageConstPtr& img_msg,
                               std::vector<GTPair>& gt_buffer);
             // buffers that are queued for writing

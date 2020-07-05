@@ -1,4 +1,4 @@
-#include "image_processor/image_processor.h"
+#include "dataset_generator/dataset_generator.h"
 
 namespace image_processor
 {
@@ -33,6 +33,11 @@ namespace image_processor
 
 	void ImageProcessor::loadParam()
 	{
+		nh_priv_.getParam("odometry_topics", odometry_topics);
+		for(int i=0; i<(int)odometry_topics.size(); i++)
+		{
+			cout << odometry_topics[i] << endl;
+		}
 		nh_priv_.param<int>("image_height", im_height_, 1080/2);
 		nh_priv_.param<int>("image_width", im_width_, 1920/2);
 		nh_priv_.param<string>("fixed_frame_id", fixed_frame_id_, "map");
@@ -52,6 +57,8 @@ namespace image_processor
 		Eigen::Vector3d ypr(offset_yaw, offset_pitch, offset_roll);
 
 		nh_priv_.param<double>("boundbox_scale", bbox_scale_, 1.0);
+
+		//nh_priv_.param<>
 
 		double delay;
 		// delay in ms
@@ -207,32 +214,32 @@ namespace image_processor
 
 
 		//Draw center of keypoints volume
-		cv::circle(image_full, point, 1 , cv::Scalar(0, 255, 255), 6);
+		cv::circle(image_full, point, 1 , cv::Scalar(0, 255, 255), 2);
 
 		//Draw keypoints volume
-		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[4], cv::Scalar(100, 100, 0), 3);
-		cv::line(image_full, keypoints_camera_frame[1], keypoints_camera_frame[5], cv::Scalar(100, 100, 0), 3);
-		cv::line(image_full, keypoints_camera_frame[2], keypoints_camera_frame[6], cv::Scalar(100, 100, 0), 3);
-		cv::line(image_full, keypoints_camera_frame[3], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 3);
-		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[2], cv::Scalar(100, 100, 0), 3);
-		cv::line(image_full, keypoints_camera_frame[1], keypoints_camera_frame[3], cv::Scalar(100, 100, 0), 3);
-		cv::line(image_full, keypoints_camera_frame[4], keypoints_camera_frame[6], cv::Scalar(100, 100, 0), 3);
-		cv::line(image_full, keypoints_camera_frame[5], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 3);
-		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[1], cv::Scalar(100, 100, 0), 3);
-		cv::line(image_full, keypoints_camera_frame[2], keypoints_camera_frame[3], cv::Scalar(100, 100, 0), 3);
-		cv::line(image_full, keypoints_camera_frame[4], keypoints_camera_frame[5], cv::Scalar(100, 100, 0), 3);
-		cv::line(image_full, keypoints_camera_frame[6], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 3);
+		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[4], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[1], keypoints_camera_frame[5], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[2], keypoints_camera_frame[6], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[3], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[2], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[1], keypoints_camera_frame[3], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[4], keypoints_camera_frame[6], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[5], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[1], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[2], keypoints_camera_frame[3], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[4], keypoints_camera_frame[5], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[6], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 2);
 
 		//Draw bbox
-		cv::rectangle(image_full, cv::Point2d(bbox_xmin, bbox_ymin), cv::Point2d(bbox_xmax, bbox_ymax), cv::Scalar(255,0,0), 3);
+		cv::rectangle(image_full, cv::Point2d(bbox_xmin, bbox_ymin), cv::Point2d(bbox_xmax, bbox_ymax), cv::Scalar(255,0,0), 2);
 		
 		//draw keypoints
 		for (int i = 0; i < 8; i++) {
 			if(i != 5 && i != 7)
-				cv::circle(image_full, keypoints_camera_frame[i], 1 , cv::Scalar(255, 255, 0), 6); 
+				cv::circle(image_full, keypoints_camera_frame[i], 1 , cv::Scalar(255, 255, 0), 2); 
 		}
-		cv::circle(image_full, keypoints_camera_frame[5], 1 , cv::Scalar(255, 0, 255), 6); 
-		cv::circle(image_full, keypoints_camera_frame[7], 1 , cv::Scalar(255, 0, 255), 6); 
+		cv::circle(image_full, keypoints_camera_frame[5], 1 , cv::Scalar(255, 0, 255), 2); 
+		cv::circle(image_full, keypoints_camera_frame[7], 1 , cv::Scalar(255, 0, 255), 2); 
 
 
 		//Publish bbox image

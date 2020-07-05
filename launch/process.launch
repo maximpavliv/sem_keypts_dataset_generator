@@ -5,12 +5,16 @@
   <arg name="root_to_record" default="/home/arpl/drones_automatic_dataset/"/>
   <arg name="image_topic" default="/gaze/image_resized"/>
   <arg name="gt_glasses_odom" default="/vicon/TobiiGlasses/odom"/>
-  <arg name="gt_drone_odom" default="/vicon/DragonFly2/odom"/>
+  <arg name="gt_drone_odom" default="/vicon/DragonFly1/odom"/>
+  <arg name="gt_drone_2_odom" default="/vicon/DragonFly2/odom"/>
+  <arg name="gt_drone_3_odom" default="/vicon/DragonFly5/odom"/>
+  <arg name="odometry_topics" default="[a_topic,a_second_topic]"/>
 
   <node pkg="sem_keypts_dataset_generator" type="sem_keypts_dataset_generator_node" name="image_processor" output="screen">
       <remap from="~image" to="$(arg image_topic)"/>
       <remap from="~glasses_odom_topic" to="$(arg gt_glasses_odom)"/>
       <remap from="~drone_odom_topic" to="$(arg gt_drone_odom)"/>
+      <rosparam param="odometry_topics" subst_value="True">$(arg odometry_topics)</rosparam> 
 
       <param name="image_width" value="960"/>
       <param name="image_height" value="540"/>
