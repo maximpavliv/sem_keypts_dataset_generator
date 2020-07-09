@@ -76,19 +76,23 @@ namespace image_processor
             Eigen::Matrix3d K;
             cv::Vec4d dist_coeff_ = cv::Vec4d(0.3228426067274788, 0.6782271574023381, -2.7508173110174234, 3.647246884438062);
 
+            std::vector<Eigen::Vector3d> keypoints_drone_frame;
+
             // image callback
             void imageCallback(const sensor_msgs::ImageConstPtr& img_msg);
             // utility funcs for loading params
             void loadParam();
             Eigen::Matrix<double, 3,3> yprToRot(const Eigen::Matrix<double,3,1>& ypr);
              
-            std::vector<ros::Duration> ts_offsets_sync_;
+            ros::Duration ts_offset_sync_;
 
             std::vector<std::vector<nav_msgs::OdometryConstPtr>> odometry_buffers;
 
             void odometry_callback(const nav_msgs::OdometryConstPtr& odometry_msg);
 
             void processImage(const cv_bridge::CvImageConstPtr& img_msg);
+
+            bool someOdomBufferIsEmpty();
 
     };
 }

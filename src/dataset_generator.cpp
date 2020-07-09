@@ -68,6 +68,16 @@ namespace image_processor
 		T_offset_ << offset_x, offset_y, offset_z;
 		R_offset_ = yprToRot(ypr);
 		R_cam_world_ = R_cam_world_ * R_offset_;
+
+		keypoints_drone_frame = {Eigen::Vector3d(quad_width_/2,quad_width_/2,quad_height_/2),
+								 Eigen::Vector3d(quad_width_/2,quad_width_/2,-quad_height_/2),
+								 Eigen::Vector3d(quad_width_/2,-quad_width_/2,quad_height_/2), 
+								 Eigen::Vector3d(quad_width_/2,-quad_width_/2,-quad_height_/2), 
+								 Eigen::Vector3d(-quad_width_/2,quad_width_/2,quad_height_/2), 
+								 Eigen::Vector3d(-quad_width_/2,quad_width_/2,-quad_height_/2), 
+								 Eigen::Vector3d(-quad_width_/2,-quad_width_/2,quad_height_/2), 
+								 Eigen::Vector3d(-quad_width_/2,-quad_width_/2,-quad_height_/2)};
+
 	}
 
 	void ImageProcessor::odometry_callback(const nav_msgs::OdometryConstPtr& odometry_msg)
@@ -105,97 +115,85 @@ namespace image_processor
 	{
 		if(!first_frame_ready_)
 		{
-			for(int i=0;i<(int)odometry_buffers.size();i++)
-			{
-				if(odometry_buffers[i].empty())
-					return;
-			}
+			if(someOdomBufferIsEmpty())
+				return;
 
-			for(int i=0;i<(int)odometry_buffers.size();i++)
-			{
-				new_ts_offset_sync_ = img_msg->header.stamp - odometry_buffers[i].front()->header.stamp; 
-				ts_offsets_sync_.push_back(new_ts_offset_sync_);
-			}
+			ts_offset_sync_ = img_msg->header.stamp - odometry_buffers.front().front()->header.stamp; 
 			
 			first_frame_ready_ = true;
 		
 			return;
 		}
 
+		if(someOdomBufferIsEmpty())
+		{
+			ROS_ERROR("Some odometry buffer is empty");
+			return;
+		}
 
 		std::vector<nav_msgs::OdometryConstPtr> current_objects_odoms;
 		for(int i=0;i<(int)odometry_buffers.size();i++)
 		{
-			ros::Time ts_now = img_msg->header.stamp - ts_offset_sync_[i] + time_offset_tune; //STOPPED HERE
+			ros::Time ts_now = img_msg->header.stamp - ts_offset_sync_ + time_offset_tune; 
 
-			auto iter = odometry_buffers[i].begin();
-			while(iter != odometry_buffers[i].end() - 1)//stopped here
+			int j = 0;
+			while(j < (int)odometry_buffers[i].size())//WARNING! WAS .end() -1 ORIGINALLY
 			{
-				if(iter->header.stamp < ts_now)
-					++iter;
+				if(odometry_buffers[i][j]->header.stamp < ts_now)
+					j++;
 				else
 					break;
 			}
-			if (iter != gt_buffer.begin()) iter--;
+			if (j != 0) j--;
 
-			GTPair gt_now = *iter;
-			gt_buffer.erase(gt_buffer.begin(), iter);
+			auto obj_odom_now = odometry_buffers[i][j];
+			current_objects_odoms.push_back(obj_odom_now);
+			odometry_buffers[i].erase(odometry_buffers[i].begin(), odometry_buffers[i].begin()+j);
+		}
 
+		std::vector<Eigen::Isometry3d> objects_H_refs;
+		for(int i=0;i<(int)odometry_buffers.size();i++)
+		{
+			Eigen::Vector3d obj_translation;
+			Eigen::Quaterniond obj_orientation;
+			tf::pointMsgToEigen(current_objects_odoms[i]->pose.pose.position, obj_translation); 
+			tf::quaternionMsgToEigen(current_objects_odoms[i]->pose.pose.orientation, obj_orientation); 
+			Eigen::Isometry3d obj_H_ref;
+			obj_H_ref.linear() = obj_orientation.toRotationMatrix();
+			obj_H_ref.translation() = obj_translation;
+			objects_H_refs.push_back(obj_H_ref);
+		}
+		objects_H_refs[0].translation() += T_offset_; //WARNING! ORIGINALLY OFFSET WAS ON DRONE AND NOT ON THE GLASSES!
+
+
+		cv::Mat image;
+		cv::resize(img_msg->image, image, cv::Size(im_width_, im_height_), 0, 0);
+
+
+		for(int i=1;i<(int)odometry_buffers.size();i++)
+		{
+			Eigen::Isometry3d H_glasses_drone = objects_H_refs[0].inverse() * objects_H_refs[i];
+			Eigen::Vector3d T_glasses_drone = H_glasses_drone.translation();
+			// convert translation vector into cam frame
+			T_glasses_drone = R_cam_world_*T_glasses_drone;
+
+			Eigen::Vector3d projected_T = K*T_glasses_drone;
+			cv::Point2d central_point(projected_T(0)/projected_T(2),
+									  projected_T(1)/projected_T(2));
 
 		}
+
+
+
+
+
+
 
 		return;
 	}
 	/*{
-
-
-		
-		// Transform the ground truth.
-		Eigen::Quaterniond orientation;
-		Eigen::Vector3d translation;
-		
-		// convert glasses odom into original frame 
-		tf::pointMsgToEigen(gt_now.first.pose.pose.position, translation); 
-		tf::quaternionMsgToEigen(gt_now.first.pose.pose.orientation, orientation); 
-		Eigen::Isometry3d H_ref_glasses;
-		H_ref_glasses.linear() = orientation.toRotationMatrix();
-		H_ref_glasses.translation() = translation;
-
-		// convert drone odom into original frame
-		tf::pointMsgToEigen(gt_now.second.pose.pose.position, translation);
-		tf::quaternionMsgToEigen(gt_now.second.pose.pose.orientation, orientation);
-		Eigen::Isometry3d H_ref_drone;
-		H_ref_drone.linear() = orientation.toRotationMatrix();
-		H_ref_drone.translation() = translation + T_offset_;//WARNING!! IS TRANSLATION HERE?? TO CHECK AGAIN TO CONFIRM
-
-	
-		Eigen::Isometry3d H_glasses_drone = H_ref_glasses.inverse() * H_ref_drone;
-		
-		Eigen::Vector3d T_glasses_drone = H_glasses_drone.translation();
-
-		// convert translation vector into cam frame
-		T_glasses_drone = R_cam_world_*T_glasses_drone; //CHECK HERE: R_CAM_WORLD ID TUNED WItH OFFSETS
-
-		Eigen::Vector3d projective_T = K*T_glasses_drone;
-
-		cv::Point2d point(projective_T(0)/projective_T(2),
-						  projective_T(1)/projective_T(2));
-
-		cv::Mat image;
-		cv::resize(img_msg->image, image, cv::Size(im_width_, im_height_), 0, 0);
-		// draw the box
-
-
 		//Computing keypoints of 3d box around the drone
 		Eigen::Matrix3d rotationM = orientation.toRotationMatrix();
-		std::vector<Eigen::Vector3d> keypoints_drone_frame = {Eigen::Vector3d(quad_width_/2,quad_width_/2,quad_height_/2),
-														   Eigen::Vector3d(quad_width_/2,quad_width_/2,-quad_height_/2),
-														   Eigen::Vector3d(quad_width_/2,-quad_width_/2,quad_height_/2), 
-														   Eigen::Vector3d(quad_width_/2_,-quad_width_/2,-quad_height_/2), 
-														   Eigen::Vector3d(-quad_width_/2*,quad_width_/2,quad_height_/2), 
-														   Eigen::Vector3d(-quad_width_/2*,quad_width_/2,-quad_height_/2), 
-														   Eigen::Vector3d(-quad_width_/2*,-quad_width_/2,quad_height_/2), 
-														   Eigen::Vector3d(-quad_width_/2*,-quad_width_/2,-quad_height_/2)};
 		
 	//    std::vector<Eigen::Vector3d> keypoints_global_frame;
 		std::vector<cv::Point2d> keypoints_camera_frame;
@@ -363,6 +361,16 @@ namespace image_processor
 		return;
 		
 	}*/
+
+	bool ImageProcessor::someOdomBufferIsEmpty()
+	{
+		for(int i=0;i<(int)odometry_buffers.size();i++)
+		{
+			if(odometry_buffers[i].empty())
+				return true;
+		}
+		return false;
+	}
 
 	Eigen::Matrix<double, 3,3> ImageProcessor::yprToRot(const Eigen::Matrix<double,3,1>& ypr)
 	{
