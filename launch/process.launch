@@ -1,50 +1,30 @@
 <launch>
-  <arg name="debug" default="false"/>
-  <!--arg name="is_record" default="true"/-->
-  <arg name="is_record" default="false"/>
-  <arg name="root_to_record" default="/home/arpl/drones_automatic_dataset/"/>
+  <arg name="to_record" default="false"/>
+  <arg name="root_to_record" default="/home/max/sem_keypts_root/"/>
   <arg name="image_topic" default="/gaze/image_resized"/>
-  <arg name="gt_glasses_odom" default="/vicon/TobiiGlasses/odom"/>
-  <arg name="gt_drone_odom" default="/vicon/DragonFly1/odom"/>
-  <arg name="gt_drone_2_odom" default="/vicon/DragonFly2/odom"/>
-  <arg name="gt_drone_3_odom" default="/vicon/DragonFly5/odom"/>
-  <arg name="odometry_topics" default="[a_topic,a_second_topic]"/>
+  <arg name="odometry_objects" default="[TobiiGlasses, DragonFly1, DragonFly2, DragonFly5]"/>
 
   <node pkg="sem_keypts_dataset_generator" type="sem_keypts_dataset_generator_node" name="image_processor" output="screen">
       <remap from="~image" to="$(arg image_topic)"/>
-      <remap from="~glasses_odom_topic" to="$(arg gt_glasses_odom)"/>
-      <remap from="~drone_odom_topic" to="$(arg gt_drone_odom)"/>
-      <rosparam param="odometry_topics" subst_value="True">$(arg odometry_topics)</rosparam> 
+      <rosparam param="odometry_objects" subst_value="True">$(arg odometry_objects)</rosparam> 
 
       <param name="image_width" value="960"/>
       <param name="image_height" value="540"/>
-      <param name="fixed_frame_id" value="map"/>
-      <param name="debug" value="true"/>
 
-      <!-- delay in ms /-->
-      <!--280-->
-      <param name="~delay" value="10"/>
-      <!--0.0-->
+      <param name="~time_offset" value="10"/>
+
       <param name="~offset_x" value="0"/>
-      <!--0.0-->
       <param name="~offset_y" value="0"/>
-      <!-- -0.05-->
       <param name="~offset_z" value="0.05"/>
 
-      <!--0.0-->
       <param name="~offset_roll" value="0.02"/>
-      <!-- -0.25-->
       <param name="~offset_pitch" value="-0.296"/>
-      <!--0.0-->
       <param name="~offset_yaw" value="-0.015"/>
 
       <param name="~quad_height" value="0.08"/>
       <param name="~quad_width" value="0.2"/>
 
-      <param name="boundbox_scale" value="1.0"/>
-
-      <param name="~to_record" value="$(arg is_record)"/>
-      <param name="~record_skip_frames" value="10"/>
+      <param name="~to_record" value="$(arg to_record)"/>
       <param name="~root" value="$(arg root_to_record)"/>
   </node>
   

@@ -5,45 +5,47 @@ namespace image_processor
 	ImageProcessor::ImageProcessor(ros::NodeHandle& nh, ros::NodeHandle& nh_priv):
 		nh_(nh),
 		nh_priv_(nh_priv),
-		it_(nh_priv),
-		gt_sync_(ApproximateTimePolicy(10), glasses_odom_sub_, drone_odom_sub_)
+		it_(nh_priv)
 	{
 		R_cam_world_ << 0.0, -1.0, 0.0,
 						0.0, 0.0, -1.0,
-						1.0, 0.0, 0.0;
+						1.0, 0.0, 0.0;						
 		loadParam();
+		K << intrinsics_[0], 0, intrinsics_[2],
+        	 0, intrinsics_[1], intrinsics_[3],
+             0, 0, 1;
 
-		glasses_odom_sub_.subscribe(nh_priv_, "glasses_odom_topic", 10);
-		drone_odom_sub_.subscribe(nh_priv_, "drone_odom_topic", 10);
 		image_sub_ = it_.subscribe("image", 1, &ImageProcessor::imageCallback, this);
-		gt_sync_.registerCallback(boost::bind(&ImageProcessor::poseGTCallback, this, _1, _2));
+
 		image_full_pub_ = it_.advertise("image_full", 1);
 		image_cropped_pub_ = it_.advertise("image_cropped", 1);
 
-		if(to_record)
+		for(int i=0; i<(int)odometry_objects.size(); i++)
+		{
+			ros::Subscriber new_odom_sub = nh_priv_.subscribe("/vicon/" + odometry_objects[i] + "/odom", 1, &ImageProcessor::odometry_callback, this); // /vicon/TobiiGlasses/odom
+			odometry_subs_.push_back(new_odom_sub);
+			std::vector<nav_msgs::OdometryConstPtr> odometry_buffer;
+			odometry_buffers.push_back(odometry_buffer);
+		}
+
+/*		if(to_record)
 		{
 			std::string string0 = root_ + "annotation_bag_6.txt";
 			myfile_.open(string0, ios::out);
 
 			cout << string0 << endl;
 			assert(myfile_.is_open());
-		}
+		}*/
 
 	}
 
 	void ImageProcessor::loadParam()
 	{
-		nh_priv_.getParam("odometry_topics", odometry_topics);
-		for(int i=0; i<(int)odometry_topics.size(); i++)
-		{
-			cout << odometry_topics[i] << endl;
-		}
+		nh_priv_.getParam("odometry_objects", odometry_objects);
 		nh_priv_.param<int>("image_height", im_height_, 1080/2);
 		nh_priv_.param<int>("image_width", im_width_, 1920/2);
-		nh_priv_.param<string>("fixed_frame_id", fixed_frame_id_, "map");
-		nh_priv_.param<bool>("is_record", to_record, false);
-		nh_priv_.param<int>("record_skip_frames", record_skip_frames_, 5);
-		nh_priv_.param<string>("root", root_, "/media/mrsl/liangzhe-T5/drone_dataset/images/");
+		nh_priv_.param<bool>("to_record", to_record, false);
+		nh_priv_.param<string>("root", root_, "/home/max/sem_keypts_root/");
 
 		double offset_x, offset_y, offset_z;
 		nh_priv_.param<double>("offset_x", offset_x, 0.0);
@@ -56,37 +58,41 @@ namespace image_processor
 		nh_priv_.param<double>("offset_yaw", offset_yaw, 0.0);
 		Eigen::Vector3d ypr(offset_yaw, offset_pitch, offset_roll);
 
-		nh_priv_.param<double>("boundbox_scale", bbox_scale_, 1.0);
-
-		//nh_priv_.param<>
-
-		double delay;
-		// delay in ms
-		nh_priv_.param<double>("delay", delay, 200);
-		// assume video frame rate to be 25Hz
-		skip_frames_ = delay/1;
+		double t_offset_tune;
+		nh_priv_.param<double>("time_offset", t_offset_tune, 0.0);
+		time_offset_tune = ros::Duration(t_offset_tune);
 
 		nh_priv_.param<double>("quad_width", quad_width_, 0.2);
 		nh_priv_.param<double>("quad_height", quad_height_, 0.08);
+
 		T_offset_ << offset_x, offset_y, offset_z;
 		R_offset_ = yprToRot(ypr);
 		R_cam_world_ = R_cam_world_ * R_offset_;
 	}
 
-	void ImageProcessor::poseGTCallback(const nav_msgs::OdometryConstPtr& glasses_odom,
-										const nav_msgs::OdometryConstPtr& drone_odom)
+	void ImageProcessor::odometry_callback(const nav_msgs::OdometryConstPtr& odometry_msg)
 	{
-		GTPair gt_odoms(*glasses_odom, *drone_odom);
-		gt_buffer_.push_back(gt_odoms);
+		auto object = odometry_msg->child_frame_id.substr(0,odometry_msg->child_frame_id.size()-10);
+		bool found_obj = false;
+		for(int i=0; i<(int)odometry_buffers.size(); i++)
+		{
+			if(object == odometry_objects[i])
+			{
+				found_obj=true;
+				odometry_buffers[i].push_back(odometry_msg);
+				break;		
+			}
+		}
+		if(!found_obj)
+			ROS_WARN("Odometry message from unknown object");
 	}
 
 	void ImageProcessor::imageCallback(const sensor_msgs::ImageConstPtr& img_msg)
 	{
 		try
 		{
-			++ frame_counter_;
-			image_ptr_ = cv_bridge::toCvShare(img_msg, "bgr8");
-			processImage(image_ptr_, gt_buffer_);
+			cv_bridge::CvImageConstPtr image_ptr_ = cv_bridge::toCvShare(img_msg, "bgr8");;
+			processImage(image_ptr_);
 		}
 		catch (cv_bridge::Exception& e)
 		{
@@ -95,44 +101,54 @@ namespace image_processor
 
 	}
 
-
-	void ImageProcessor::processImage(const cv_bridge::CvImageConstPtr& img_msg,
-									  std::vector<GTPair>& gt_buffer)
+	void ImageProcessor::processImage(const cv_bridge::CvImageConstPtr& img_msg)
 	{
-		static Eigen::Matrix3d K;
-		K << intrinsics_[0], 0, intrinsics_[2],
-			 0, intrinsics_[1], intrinsics_[3],
-			 0, 0, 1;
-		static double focal_length = (intrinsics_[0] + intrinsics_[1])/2;
-		static char filename_buffer[100];
-		static char annotation_buffer[100];
 		if(!first_frame_ready_)
 		{
-			if(frame_counter_ < skip_frames_)
+			for(int i=0;i<(int)odometry_buffers.size();i++)
 			{
-				ROS_WARN("SKIP ONE FRAME");
-				return;
+				if(odometry_buffers[i].empty())
+					return;
 			}
-			if(gt_buffer.empty())
-				return;
-			ts_offset_ = img_msg->header.stamp - gt_buffer.front().first.header.stamp;
+
+			for(int i=0;i<(int)odometry_buffers.size();i++)
+			{
+				new_ts_offset_sync_ = img_msg->header.stamp - odometry_buffers[i].front()->header.stamp; 
+				ts_offsets_sync_.push_back(new_ts_offset_sync_);
+			}
+			
 			first_frame_ready_ = true;
-			frame_counter_ = 0;
+		
 			return;
 		}
-		ros::Time ts_now = img_msg->header.stamp - ts_offset_;
-		auto iter = gt_buffer.begin();
-		while(iter != gt_buffer.end() - 1)
-		{
-			if(iter->first.header.stamp < ts_now)
-				++iter;
-			else
-				break;
-		}
-		if (iter != gt_buffer.begin()) iter--;
 
-		GTPair gt_now = *iter;
-		gt_buffer.erase(gt_buffer.begin(), iter);
+
+		std::vector<nav_msgs::OdometryConstPtr> current_objects_odoms;
+		for(int i=0;i<(int)odometry_buffers.size();i++)
+		{
+			ros::Time ts_now = img_msg->header.stamp - ts_offset_sync_[i] + time_offset_tune; //STOPPED HERE
+
+			auto iter = odometry_buffers[i].begin();
+			while(iter != odometry_buffers[i].end() - 1)//stopped here
+			{
+				if(iter->header.stamp < ts_now)
+					++iter;
+				else
+					break;
+			}
+			if (iter != gt_buffer.begin()) iter--;
+
+			GTPair gt_now = *iter;
+			gt_buffer.erase(gt_buffer.begin(), iter);
+
+
+		}
+
+		return;
+	}
+	/*{
+
+
 		
 		// Transform the ground truth.
 		Eigen::Quaterniond orientation;
@@ -150,7 +166,7 @@ namespace image_processor
 		tf::quaternionMsgToEigen(gt_now.second.pose.pose.orientation, orientation);
 		Eigen::Isometry3d H_ref_drone;
 		H_ref_drone.linear() = orientation.toRotationMatrix();
-		H_ref_drone.translation() = translation + T_offset_;
+		H_ref_drone.translation() = translation + T_offset_;//WARNING!! IS TRANSLATION HERE?? TO CHECK AGAIN TO CONFIRM
 
 	
 		Eigen::Isometry3d H_glasses_drone = H_ref_glasses.inverse() * H_ref_drone;
@@ -158,7 +174,7 @@ namespace image_processor
 		Eigen::Vector3d T_glasses_drone = H_glasses_drone.translation();
 
 		// convert translation vector into cam frame
-		T_glasses_drone = R_cam_world_*T_glasses_drone;
+		T_glasses_drone = R_cam_world_*T_glasses_drone; //CHECK HERE: R_CAM_WORLD ID TUNED WItH OFFSETS
 
 		Eigen::Vector3d projective_T = K*T_glasses_drone;
 
@@ -172,14 +188,14 @@ namespace image_processor
 
 		//Computing keypoints of 3d box around the drone
 		Eigen::Matrix3d rotationM = orientation.toRotationMatrix();
-		std::vector<Eigen::Vector3d> keypoints_drone_frame = {Eigen::Vector3d(quad_width_/2*bbox_scale_,quad_width_/2*bbox_scale_,quad_height_/2*bbox_scale_),
-														   Eigen::Vector3d(quad_width_/2*bbox_scale_,quad_width_/2*bbox_scale_,-quad_height_/2*bbox_scale_),
-														   Eigen::Vector3d(quad_width_/2*bbox_scale_,-quad_width_/2*bbox_scale_,quad_height_/2*bbox_scale_), 
-														   Eigen::Vector3d(quad_width_/2*bbox_scale_,-quad_width_/2*bbox_scale_,-quad_height_/2*bbox_scale_), 
-														   Eigen::Vector3d(-quad_width_/2*bbox_scale_,quad_width_/2*bbox_scale_,quad_height_/2*bbox_scale_), 
-														   Eigen::Vector3d(-quad_width_/2*bbox_scale_,quad_width_/2*bbox_scale_,-quad_height_/2*bbox_scale_), 
-														   Eigen::Vector3d(-quad_width_/2*bbox_scale_,-quad_width_/2*bbox_scale_,quad_height_/2*bbox_scale_), 
-														   Eigen::Vector3d(-quad_width_/2*bbox_scale_,-quad_width_/2*bbox_scale_,-quad_height_/2*bbox_scale_)};
+		std::vector<Eigen::Vector3d> keypoints_drone_frame = {Eigen::Vector3d(quad_width_/2,quad_width_/2,quad_height_/2),
+														   Eigen::Vector3d(quad_width_/2,quad_width_/2,-quad_height_/2),
+														   Eigen::Vector3d(quad_width_/2,-quad_width_/2,quad_height_/2), 
+														   Eigen::Vector3d(quad_width_/2_,-quad_width_/2,-quad_height_/2), 
+														   Eigen::Vector3d(-quad_width_/2*,quad_width_/2,quad_height_/2), 
+														   Eigen::Vector3d(-quad_width_/2*,quad_width_/2,-quad_height_/2), 
+														   Eigen::Vector3d(-quad_width_/2*,-quad_width_/2,quad_height_/2), 
+														   Eigen::Vector3d(-quad_width_/2*,-quad_width_/2,-quad_height_/2)};
 		
 	//    std::vector<Eigen::Vector3d> keypoints_global_frame;
 		std::vector<cv::Point2d> keypoints_camera_frame;
@@ -189,7 +205,7 @@ namespace image_processor
 			Eigen::Vector3d T_glasses_drone_edge = H_glasses_drone*keypoints_drone_frame[i];
 			
 			// convert translation vector into cam frame
-			T_glasses_drone_edge = R_cam_world_*T_glasses_drone_edge;
+			T_glasses_drone_edge = R_cam_world_*T_glasses_drone_edge; //CHECK HERE: R_CAM_WORLD ID TUNED WItH OFFSETS
 			Eigen::Vector3d projective_T_edge = K*T_glasses_drone_edge;
 			cv::Point2d point_edge(projective_T_edge(0)/projective_T_edge(2),
 							  projective_T_edge(1)/projective_T_edge(2));
@@ -318,33 +334,35 @@ namespace image_processor
 
 		if(to_record)
 		{
-			if((frame_counter_%skip_frames_==0) && bbox_xmin > 0 && bbox_ymin > 0 && bbox_xmax < im_width_ && bbox_ymax < im_height_ )
+			if(bbox_xmin > 0 && bbox_ymin > 0 && bbox_xmax < im_width_ && bbox_ymax < im_height_ )
 			{
-				/*
-				std::vector<int> compression_params;
-				compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
-				compression_params.push_back(3);
-				snprintf(filename_buffer, sizeof(filename_buffer), (root_ + "drone_raw_6/auto_dataset_bag_6_%06d.png").c_str(), record_idx_);
-				std::string file_path = filename_buffer;
-				cv::imwrite(file_path, image, compression_params);
-				snprintf(filename_buffer, sizeof(filename_buffer), (root_ + "drone_bbox_6/auto_dataset_bag_6_%06d.png").c_str(), record_idx_);
-				file_path = filename_buffer;
-				cv::imwrite(file_path, image_bbox, compression_params);
+				//static char filename_buffer[100];
+				//static char annotation_buffer[100]; //CHECK DIFFERENCE BETWEEN BOTH
+				
+				//std::vector<int> compression_params;
+				//compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
+				//compression_params.push_back(3);
+				//snprintf(filename_buffer, sizeof(filename_buffer), (root_ + "drone_raw_6/auto_dataset_bag_6_%06d.png").c_str(), record_idx_);
+				//std::string file_path = filename_buffer;
+				//cv::imwrite(file_path, image, compression_params);
+				//snprintf(filename_buffer, sizeof(filename_buffer), (root_ + "drone_bbox_6/auto_dataset_bag_6_%06d.png").c_str(), record_idx_);
+				//file_path = filename_buffer;
+				//cv::imwrite(file_path, image_bbox, compression_params);
 
 
-				snprintf(annotation_buffer, sizeof(annotation_buffer), "auto_dataset_bag_6_%06d.png,0 %.10f %.10f %.10f %.10f", record_idx_, (xmax+xmin)/im_width_/2, (ymax+ymin)/2/im_height_, (xmax-xmin)/im_width_, (ymax-ymin)/im_height_);
-				std::string annotation_string = annotation_buffer;
-				myfile_ << annotation_string << "\n";
+				//snprintf(annotation_buffer, sizeof(annotation_buffer), "auto_dataset_bag_6_%06d.png,0 %.10f %.10f %.10f %.10f", record_idx_, (xmax+xmin)/im_width_/2, (ymax+ymin)/2/im_height_, (xmax-xmin)/im_width_, (ymax-ymin)/im_height_);
+				//std::string annotation_string = annotation_buffer;
+				//myfile_ << annotation_string << "\n";
 
-				std::cout << "Writing image to:" << file_path << std::endl;
-				++record_idx_;
-				frame_counter_ = 0;
-				*/
+				//std::cout << "Writing image to:" << file_path << std::endl;
+				//++record_idx_;
+				
 			}
 		}
 
 		return;
-	}
+		
+	}*/
 
 	Eigen::Matrix<double, 3,3> ImageProcessor::yprToRot(const Eigen::Matrix<double,3,1>& ypr)
 	{
