@@ -132,10 +132,11 @@ namespace image_processor
 		}
 
 		std::vector<nav_msgs::OdometryConstPtr> current_objects_odoms;
+
+		ros::Time ts_now = img_msg->header.stamp - ts_offset_sync_ + time_offset_tune; 
+
 		for(int i=0;i<(int)odometry_buffers.size();i++)
 		{
-			ros::Time ts_now = img_msg->header.stamp - ts_offset_sync_ + time_offset_tune; 
-
 			int j = 0;
 			while(j < (int)odometry_buffers[i].size())//WARNING! WAS .end() -1 ORIGINALLY
 			{
@@ -152,10 +153,12 @@ namespace image_processor
 		}
 
 		std::vector<Eigen::Isometry3d> objects_H_refs;
+		std::vector<Eigen::Quaterniond> objects_orientations;		
 		for(int i=0;i<(int)odometry_buffers.size();i++)
 		{
 			Eigen::Vector3d obj_translation;
 			Eigen::Quaterniond obj_orientation;
+			objects_orientations.push_back(obj_orientation);
 			tf::pointMsgToEigen(current_objects_odoms[i]->pose.pose.position, obj_translation); 
 			tf::quaternionMsgToEigen(current_objects_odoms[i]->pose.pose.orientation, obj_orientation); 
 			Eigen::Isometry3d obj_H_ref;
@@ -170,165 +173,67 @@ namespace image_processor
 		cv::resize(img_msg->image, image, cv::Size(im_width_, im_height_), 0, 0);
 
 
-		for(int i=1;i<(int)odometry_buffers.size();i++)
-		{
-			Eigen::Isometry3d H_glasses_drone = objects_H_refs[0].inverse() * objects_H_refs[i];
-			Eigen::Vector3d T_glasses_drone = H_glasses_drone.translation();
-			// convert translation vector into cam frame
-			T_glasses_drone = R_cam_world_*T_glasses_drone;
-
-			Eigen::Vector3d projected_T = K*T_glasses_drone;
-			cv::Point2d central_point(projected_T(0)/projected_T(2),
-									  projected_T(1)/projected_T(2));
-
-		}
-
-
-
-
-
-
-
-		return;
-	}
-	/*{
-		//Computing keypoints of 3d box around the drone
-		Eigen::Matrix3d rotationM = orientation.toRotationMatrix();
-		
-	//    std::vector<Eigen::Vector3d> keypoints_global_frame;
-		std::vector<cv::Point2d> keypoints_camera_frame;
-		
-		for(int i=0;i<8;i++)
-		{
-			Eigen::Vector3d T_glasses_drone_edge = H_glasses_drone*keypoints_drone_frame[i];
-			
-			// convert translation vector into cam frame
-			T_glasses_drone_edge = R_cam_world_*T_glasses_drone_edge; //CHECK HERE: R_CAM_WORLD ID TUNED WItH OFFSETS
-			Eigen::Vector3d projective_T_edge = K*T_glasses_drone_edge;
-			cv::Point2d point_edge(projective_T_edge(0)/projective_T_edge(2),
-							  projective_T_edge(1)/projective_T_edge(2));
-			keypoints_camera_frame.push_back(point_edge);
-		}
-
-		double bbox_xmin = keypoints_camera_frame[0].x;
-		double bbox_ymin = keypoints_camera_frame[0].y;
-		double bbox_xmax = keypoints_camera_frame[0].x;
-		double bbox_ymax = keypoints_camera_frame[0].y;
-		for (int i = 1; i < 8; i++) {
-			bbox_xmin = std::min(bbox_xmin, keypoints_camera_frame[i].x);
-			bbox_xmax = std::max(bbox_xmax, keypoints_camera_frame[i].x);
-			bbox_ymin = std::min(bbox_ymin, keypoints_camera_frame[i].y);
-			bbox_ymax = std::max(bbox_ymax, keypoints_camera_frame[i].y);
-		}
-		double margin_bbox = 20;
-		bbox_xmin-=margin_bbox; bbox_ymin-= margin_bbox; bbox_xmax+=margin_bbox; bbox_ymax+=margin_bbox;  
+		//std::vector<cv::Point2d> main_drone_keypoints_camera_frame;
 
 		cv::Mat image_full;
 		image.copyTo(image_full);
 
 
-		//Draw center of keypoints volume
-		cv::circle(image_full, point, 1 , cv::Scalar(0, 255, 255), 2);
-
-		//Draw keypoints volume
-		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[4], cv::Scalar(100, 100, 0), 2);
-		cv::line(image_full, keypoints_camera_frame[1], keypoints_camera_frame[5], cv::Scalar(100, 100, 0), 2);
-		cv::line(image_full, keypoints_camera_frame[2], keypoints_camera_frame[6], cv::Scalar(100, 100, 0), 2);
-		cv::line(image_full, keypoints_camera_frame[3], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 2);
-		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[2], cv::Scalar(100, 100, 0), 2);
-		cv::line(image_full, keypoints_camera_frame[1], keypoints_camera_frame[3], cv::Scalar(100, 100, 0), 2);
-		cv::line(image_full, keypoints_camera_frame[4], keypoints_camera_frame[6], cv::Scalar(100, 100, 0), 2);
-		cv::line(image_full, keypoints_camera_frame[5], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 2);
-		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[1], cv::Scalar(100, 100, 0), 2);
-		cv::line(image_full, keypoints_camera_frame[2], keypoints_camera_frame[3], cv::Scalar(100, 100, 0), 2);
-		cv::line(image_full, keypoints_camera_frame[4], keypoints_camera_frame[5], cv::Scalar(100, 100, 0), 2);
-		cv::line(image_full, keypoints_camera_frame[6], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 2);
-
-		//Draw bbox
-		cv::rectangle(image_full, cv::Point2d(bbox_xmin, bbox_ymin), cv::Point2d(bbox_xmax, bbox_ymax), cv::Scalar(255,0,0), 2);
-		
-		//draw keypoints
-		for (int i = 0; i < 8; i++) {
-			if(i != 5 && i != 7)
-				cv::circle(image_full, keypoints_camera_frame[i], 1 , cv::Scalar(255, 255, 0), 2); 
-		}
-		cv::circle(image_full, keypoints_camera_frame[5], 1 , cv::Scalar(255, 0, 255), 2); 
-		cv::circle(image_full, keypoints_camera_frame[7], 1 , cv::Scalar(255, 0, 255), 2); 
-
-
-		//Publish bbox image
-		cv_bridge::CvImage image_full_bridge;
-		image_full_bridge.header.stamp = ts_now;
-		image_full_bridge.image = image_full;
-		image_full_bridge.encoding = sensor_msgs::image_encodings::BGR8;
-		sensor_msgs::ImagePtr full_msg = image_full_bridge.toImageMsg();
-		image_full_pub_.publish(full_msg);
-
-		//Cropped image
-		int square_bbox_xmin, square_bbox_ymin, square_bbox_xmax, square_bbox_ymax;
-		int square_bbox_width;
-		if((bbox_xmax-bbox_xmin) > (bbox_ymax-bbox_ymin))
+		std::vector<cv::Point2d> keypoints_camera_frame_main_drone;
+		std::vector<double> bbox_limits_main_drone;
+		for(int i=1;i<(int)odometry_buffers.size();i++)
 		{
-			square_bbox_width = bbox_xmax-bbox_xmin;
-			square_bbox_xmin = bbox_xmin;
-			square_bbox_xmax = bbox_xmax;
-			square_bbox_ymin = (bbox_ymax+bbox_ymin)/2 - square_bbox_width/2;
-			square_bbox_ymax = (bbox_ymax+bbox_ymin)/2 + square_bbox_width/2;
+			//Compute transform matrix
+			Eigen::Isometry3d H_glasses_drone = objects_H_refs[0].inverse() * objects_H_refs[i];
+			
+			cv::Point2d central_point = computeCentralPoint(H_glasses_drone);
+
+			//Computing keypoints of 3d box around the drone
+			//Eigen::Matrix3d rotationM = objects_orientations[i].toRotationMatrix();
+			
+			std::vector<cv::Point2d> keypoints_camera_frame = computeKeypointsCameraFrame(H_glasses_drone);
+			if (i==1)
+				keypoints_camera_frame_main_drone = keypoints_camera_frame;
+
+			//xmin, ymin, xmax, ymax
+			std::vector<double> bbox_limits = computeBboxLimits(keypoints_camera_frame);
+			if(i==1)
+				bbox_limits_main_drone = bbox_limits;
+			//double bbox_xmin = bbox_limits[0]; double bbox_ymin = bbox_limits[1]; double bbox_xmax = bbox_limits[2]; double bbox_ymax = bbox_limits[3]; 
+			
+			drawDroneOnFullImage(image_full, central_point, keypoints_camera_frame, bbox_limits);
 		}
-		else
-		{
-			square_bbox_width = bbox_ymax-bbox_ymin;
-			square_bbox_ymin = bbox_ymin;
-			square_bbox_ymax = bbox_ymax;
-			square_bbox_xmin = (bbox_xmax+bbox_xmin)/2 - square_bbox_width/2;
-			square_bbox_xmax = (bbox_xmax+bbox_xmin)/2 + square_bbox_width/2;
-		}
+
+		publishImage(image_full_pub_, image_full, ts_now);
+
+		std::vector<int> square_bbox_limits = computeSquareBboxLimits(bbox_limits_main_drone);
+		int square_bbox_xmin = square_bbox_limits[0]; int square_bbox_ymin = square_bbox_limits[1]; int square_bbox_xmax = square_bbox_limits[2]; int square_bbox_ymax = square_bbox_limits[3]; 
 
 		if(square_bbox_xmin>=0 && square_bbox_ymin >= 0 && square_bbox_xmax < image.cols && square_bbox_ymax < image.rows)
 		{
 			cv::Mat image_cropped;
+			int square_bbox_width = square_bbox_xmax - square_bbox_xmin;
 			image(cv::Rect(square_bbox_xmin,square_bbox_ymin,square_bbox_width,square_bbox_width)).copyTo(image_cropped);
 
 			cv::Point2d square_coordinates_offset(square_bbox_xmin, square_bbox_ymin);
 
-			std::vector<cv::Point2d> keypoints_cropped;
-			for(int i=0; i<8; i++)
-			{
-				cv::Point2d kpt_cropped;
-				kpt_cropped = keypoints_camera_frame[i] - square_coordinates_offset;
-				keypoints_cropped.push_back(kpt_cropped);
-			}	
+			std::vector<cv::Point2d> keypoints_cropped = computeKeypointsCropped(keypoints_camera_frame_main_drone, square_coordinates_offset);
 
-					//Draw keypoints volume
-			cv::line(image_cropped, keypoints_cropped[0], keypoints_cropped[4], cv::Scalar(100, 100, 0), 0.5);
-			cv::line(image_cropped, keypoints_cropped[1], keypoints_cropped[5], cv::Scalar(100, 100, 0), 0.5);
-			cv::line(image_cropped, keypoints_cropped[2], keypoints_cropped[6], cv::Scalar(100, 100, 0), 0.5);
-			cv::line(image_cropped, keypoints_cropped[3], keypoints_cropped[7], cv::Scalar(100, 100, 0), 0.5);
-			cv::line(image_cropped, keypoints_cropped[0], keypoints_cropped[2], cv::Scalar(100, 100, 0), 0.5);
-			cv::line(image_cropped, keypoints_cropped[1], keypoints_cropped[3], cv::Scalar(100, 100, 0), 0.5);
-			cv::line(image_cropped, keypoints_cropped[4], keypoints_cropped[6], cv::Scalar(100, 100, 0), 0.5);
-			cv::line(image_cropped, keypoints_cropped[5], keypoints_cropped[7], cv::Scalar(100, 100, 0), 0.5);
-			cv::line(image_cropped, keypoints_cropped[0], keypoints_cropped[1], cv::Scalar(100, 100, 0), 0.5);
-			cv::line(image_cropped, keypoints_cropped[2], keypoints_cropped[3], cv::Scalar(100, 100, 0), 0.5);
-			cv::line(image_cropped, keypoints_cropped[4], keypoints_cropped[5], cv::Scalar(100, 100, 0), 0.5);
-			cv::line(image_cropped, keypoints_cropped[6], keypoints_cropped[7], cv::Scalar(100, 100, 0), 0.5);
+			drawDroneOnCroppedImage(image_cropped, keypoints_cropped);
 
-			for (int i = 0; i < 8; i++) {
-				if(i != 5 && i != 7)
-					cv::circle(image_cropped, keypoints_cropped[i], 1 , cv::Scalar(255, 255, 0), 1); 
-			}
-			cv::circle(image_cropped, keypoints_cropped[5], 1 , cv::Scalar(255, 0, 255), 1); 
-			cv::circle(image_cropped, keypoints_cropped[7], 1 , cv::Scalar(255, 0, 255), 1); 
-
-
-			//Publish cropped image
-			cv_bridge::CvImage image_cropped_bridge;
-			image_cropped_bridge.header.stamp = ts_now;
-			image_cropped_bridge.image = image_cropped;
-			image_cropped_bridge.encoding = sensor_msgs::image_encodings::BGR8;
-			sensor_msgs::ImagePtr cropped_msg = image_cropped_bridge.toImageMsg();
-			image_cropped_pub_.publish(cropped_msg);
+			publishImage(image_cropped_pub_, image_cropped, ts_now);
 		}
+
+
+		return;
+	}
+	/*{
+		
+
+
+
+
+
 
 		if(to_record)
 		{
@@ -371,6 +276,168 @@ namespace image_processor
 		}
 		return false;
 	}
+
+	cv::Point2d ImageProcessor::computeCentralPoint(Eigen::Isometry3d H_glasses_drone)
+	{
+
+		Eigen::Vector3d T_glasses_drone = H_glasses_drone.translation();
+
+		// convert translation vector into cam frame
+		T_glasses_drone = R_cam_world_*T_glasses_drone;
+
+		// project onto camera frame
+		Eigen::Vector3d projected_T = K*T_glasses_drone;
+		cv::Point2d central_point(projected_T(0)/projected_T(2),
+								  projected_T(1)/projected_T(2));
+		return central_point;
+	}
+
+	std::vector<cv::Point2d> ImageProcessor::computeKeypointsCameraFrame(Eigen::Isometry3d H_glasses_drone)
+	{
+		std::vector<cv::Point2d> keypoints_camera_frame;
+
+		for(int i=0;i<8;i++)
+		{
+			Eigen::Vector3d T_glasses_drone_edge = H_glasses_drone*keypoints_drone_frame[i];
+			
+			// convert translation vector into cam frame
+			T_glasses_drone_edge = R_cam_world_*T_glasses_drone_edge; //CHECK HERE: R_CAM_WORLD ID TUNED WItH OFFSETS
+			Eigen::Vector3d projective_T_edge = K*T_glasses_drone_edge;
+			cv::Point2d point_edge(projective_T_edge(0)/projective_T_edge(2),
+							  projective_T_edge(1)/projective_T_edge(2));
+			keypoints_camera_frame.push_back(point_edge);
+		}
+
+		return keypoints_camera_frame;
+	}
+
+	//xmin, ymin, xmax, ymax
+	std::vector<double> ImageProcessor::computeBboxLimits(std::vector<cv::Point2d> keypoints_camera_frame)
+	{
+		double bbox_xmin = keypoints_camera_frame[0].x;
+		double bbox_ymin = keypoints_camera_frame[0].y;
+		double bbox_xmax = keypoints_camera_frame[0].x;
+		double bbox_ymax = keypoints_camera_frame[0].y;
+		for (int i = 1; i < 8; i++) {
+			bbox_xmin = std::min(bbox_xmin, keypoints_camera_frame[i].x);
+			bbox_ymin = std::min(bbox_ymin, keypoints_camera_frame[i].y);
+			bbox_xmax = std::max(bbox_xmax, keypoints_camera_frame[i].x);
+			bbox_ymax = std::max(bbox_ymax, keypoints_camera_frame[i].y);
+		}
+		double margin_bbox = 20;
+		bbox_xmin-=margin_bbox; bbox_ymin-= margin_bbox; bbox_xmax+=margin_bbox; bbox_ymax+=margin_bbox;  
+
+		std::vector<double> bbox_limits;
+		bbox_limits.push_back(bbox_xmin); bbox_limits.push_back(bbox_ymin); bbox_limits.push_back(bbox_xmax); bbox_limits.push_back(bbox_ymax); 
+		return bbox_limits;
+	}
+
+	void ImageProcessor::drawDroneOnFullImage(cv::Mat image_full, cv::Point2d central_point, std::vector<cv::Point2d> keypoints_camera_frame, std::vector<double> bbox_limits)
+	{
+		double bbox_xmin = bbox_limits[0]; double bbox_ymin = bbox_limits[1]; double bbox_xmax = bbox_limits[2]; double bbox_ymax = bbox_limits[3]; 
+
+		//Draw center of keypoints volume
+		cv::circle(image_full, central_point, 1 , cv::Scalar(0, 255, 255), 2);
+
+		//Draw keypoints volume
+		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[4], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[1], keypoints_camera_frame[5], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[2], keypoints_camera_frame[6], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[3], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[2], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[1], keypoints_camera_frame[3], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[4], keypoints_camera_frame[6], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[5], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[0], keypoints_camera_frame[1], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[2], keypoints_camera_frame[3], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[4], keypoints_camera_frame[5], cv::Scalar(100, 100, 0), 2);
+		cv::line(image_full, keypoints_camera_frame[6], keypoints_camera_frame[7], cv::Scalar(100, 100, 0), 2);
+
+		//Draw bbox
+		cv::rectangle(image_full, cv::Point2d(bbox_xmin, bbox_ymin), cv::Point2d(bbox_xmax, bbox_ymax), cv::Scalar(255,0,0), 2);
+		
+		//draw keypoints
+		for (int i = 0; i < 8; i++) {
+			if(i != 5 && i != 7)
+				cv::circle(image_full, keypoints_camera_frame[i], 1 , cv::Scalar(255, 255, 0), 2); 
+		}
+		cv::circle(image_full, keypoints_camera_frame[5], 1 , cv::Scalar(255, 0, 255), 2); 
+		cv::circle(image_full, keypoints_camera_frame[7], 1 , cv::Scalar(255, 0, 255), 2); 
+
+	}
+
+	void ImageProcessor::publishImage(image_transport::Publisher image_publisher, cv::Mat image, ros::Time ts_now)
+	{
+		cv_bridge::CvImage image_bridge;
+		image_bridge.header.stamp = ts_now;
+		image_bridge.image = image;
+		image_bridge.encoding = sensor_msgs::image_encodings::BGR8;
+		sensor_msgs::ImagePtr msg = image_bridge.toImageMsg();
+		image_publisher.publish(msg);
+	}
+
+	std::vector<int> ImageProcessor::computeSquareBboxLimits(std::vector<double> bbox_limits)
+	{
+		double bbox_xmin = bbox_limits[0]; double bbox_ymin = bbox_limits[1]; double bbox_xmax = bbox_limits[2]; double bbox_ymax = bbox_limits[3]; 
+		int square_bbox_xmin, square_bbox_ymin, square_bbox_xmax, square_bbox_ymax;
+		int square_bbox_width;
+		if((bbox_xmax-bbox_xmin) > (bbox_ymax-bbox_ymin))
+		{
+			square_bbox_width = bbox_xmax-bbox_xmin;
+			square_bbox_xmin = bbox_xmin;
+			square_bbox_xmax = bbox_xmax;
+			square_bbox_ymin = (bbox_ymax+bbox_ymin)/2 - square_bbox_width/2;
+			square_bbox_ymax = (bbox_ymax+bbox_ymin)/2 + square_bbox_width/2;
+		}
+		else
+		{
+			square_bbox_width = bbox_ymax-bbox_ymin;
+			square_bbox_ymin = bbox_ymin;
+			square_bbox_ymax = bbox_ymax;
+			square_bbox_xmin = (bbox_xmax+bbox_xmin)/2 - square_bbox_width/2;
+			square_bbox_xmax = (bbox_xmax+bbox_xmin)/2 + square_bbox_width/2;
+		}
+		std::vector<int> square_bbox_limits;
+		square_bbox_limits.push_back(square_bbox_xmin); square_bbox_limits.push_back(square_bbox_ymin); square_bbox_limits.push_back(square_bbox_xmax); square_bbox_limits.push_back(square_bbox_ymax); 
+		return square_bbox_limits;
+	}
+
+	std::vector<cv::Point2d> ImageProcessor::computeKeypointsCropped(std::vector<cv::Point2d> keypoints_camera_frame, cv::Point2d square_coordinates_offset)
+	{
+		std::vector<cv::Point2d> keypoints_cropped;
+		for(int i=0; i<8; i++)
+		{
+			cv::Point2d kpt_cropped;
+			kpt_cropped = keypoints_camera_frame[i] - square_coordinates_offset;
+			keypoints_cropped.push_back(kpt_cropped);
+		}	
+		return keypoints_cropped;
+	}
+
+	void ImageProcessor::drawDroneOnCroppedImage(cv::Mat image_cropped, std::vector<cv::Point2d> keypoints_cropped)
+	{
+		//Draw keypoints volume
+		cv::line(image_cropped, keypoints_cropped[0], keypoints_cropped[4], cv::Scalar(100, 100, 0), 0.5);
+		cv::line(image_cropped, keypoints_cropped[1], keypoints_cropped[5], cv::Scalar(100, 100, 0), 0.5);
+		cv::line(image_cropped, keypoints_cropped[2], keypoints_cropped[6], cv::Scalar(100, 100, 0), 0.5);
+		cv::line(image_cropped, keypoints_cropped[3], keypoints_cropped[7], cv::Scalar(100, 100, 0), 0.5);
+		cv::line(image_cropped, keypoints_cropped[0], keypoints_cropped[2], cv::Scalar(100, 100, 0), 0.5);
+		cv::line(image_cropped, keypoints_cropped[1], keypoints_cropped[3], cv::Scalar(100, 100, 0), 0.5);
+		cv::line(image_cropped, keypoints_cropped[4], keypoints_cropped[6], cv::Scalar(100, 100, 0), 0.5);
+		cv::line(image_cropped, keypoints_cropped[5], keypoints_cropped[7], cv::Scalar(100, 100, 0), 0.5);
+		cv::line(image_cropped, keypoints_cropped[0], keypoints_cropped[1], cv::Scalar(100, 100, 0), 0.5);
+		cv::line(image_cropped, keypoints_cropped[2], keypoints_cropped[3], cv::Scalar(100, 100, 0), 0.5);
+		cv::line(image_cropped, keypoints_cropped[4], keypoints_cropped[5], cv::Scalar(100, 100, 0), 0.5);
+		cv::line(image_cropped, keypoints_cropped[6], keypoints_cropped[7], cv::Scalar(100, 100, 0), 0.5);
+
+		for (int i = 0; i < 8; i++) {
+			if(i != 5 && i != 7)
+				cv::circle(image_cropped, keypoints_cropped[i], 1 , cv::Scalar(255, 255, 0), 1); 
+		}
+		cv::circle(image_cropped, keypoints_cropped[5], 1 , cv::Scalar(255, 0, 255), 1); 
+		cv::circle(image_cropped, keypoints_cropped[7], 1 , cv::Scalar(255, 0, 255), 1); 
+	}
+
 
 	Eigen::Matrix<double, 3,3> ImageProcessor::yprToRot(const Eigen::Matrix<double,3,1>& ypr)
 	{

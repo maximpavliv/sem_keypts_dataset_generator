@@ -94,6 +94,28 @@ namespace image_processor
 
             bool someOdomBufferIsEmpty();
 
+            cv::Point2d computeCentralPoint(Eigen::Isometry3d H_glasses_drone);
+            std::vector<cv::Point2d> computeKeypointsCameraFrame(Eigen::Isometry3d H_glasses_drone);
+            std::vector<double> computeBboxLimits(std::vector<cv::Point2d> keypoints_camera_frame);
+
+            void drawDroneOnFullImage(cv::Mat image_full, cv::Point2d central_point, std::vector<cv::Point2d> keypoints_camera_frame, std::vector<double> bbox_limits);
+
+            void publishImage(image_transport::Publisher image_publisher, cv::Mat image_full, ros::Time ts_now);
+
+            std::vector<int> computeSquareBboxLimits(std::vector<double> bbox_limits_main_drone);
+
+            std::vector<cv::Point2d> computeKeypointsCropped(std::vector<cv::Point2d> keypoints_camera_frame, cv::Point2d square_coordinates_offset);
+
+            void drawDroneOnCroppedImage(cv::Mat image_cropped, std::vector<cv::Point2d> keypoints_cropped);
+
+
+
+
+
+
+
+
+
     };
 }
 
