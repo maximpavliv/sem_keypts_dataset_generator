@@ -28,14 +28,12 @@ namespace image_processor
 			odometry_buffers.push_back(odometry_buffer);
 		}
 
-/*		if(to_record)
+		if(to_record)
 		{
-			std::string string0 = root_ + "annotation_bag_6.txt";
-			myfile_.open(string0, ios::out);
-
-			cout << string0 << endl;
+			std::string absolut_filename = root_ + filename_;
+			myfile_.open(absolut_filename, ios::out);
 			assert(myfile_.is_open());
-		}*/
+		}
 
 	}
 
@@ -46,6 +44,7 @@ namespace image_processor
 		nh_priv_.param<int>("image_width", im_width_, 1920/2);
 		nh_priv_.param<bool>("to_record", to_record, false);
 		nh_priv_.param<string>("root", root_, "/home/max/sem_keypts_root/");
+		nh_priv_.param<string>("filename", filename_, "annotations.txt");
 
 		double offset_x, offset_y, offset_z;
 		nh_priv_.param<double>("offset_x", offset_x, 0.0);
@@ -202,6 +201,8 @@ namespace image_processor
 			//double bbox_xmin = bbox_limits[0]; double bbox_ymin = bbox_limits[1]; double bbox_xmax = bbox_limits[2]; double bbox_ymax = bbox_limits[3]; 
 			
 			drawDroneOnFullImage(image_full, central_point, keypoints_camera_frame, bbox_limits);
+
+			cv::putText(image_full, std::to_string(counter), cv::Point(20, 20), cv::FONT_HERSHEY_DUPLEX, 0.5, CV_RGB(0, 0, 0), 1);
 		}
 
 		publishImage(image_full_pub_, image_full, ts_now);
@@ -221,51 +222,53 @@ namespace image_processor
 
 			drawDroneOnCroppedImage(image_cropped, keypoints_cropped);
 
+			cv::putText(image_cropped, std::to_string(counter), cv::Point(20, 20), cv::FONT_HERSHEY_DUPLEX, 0.5, CV_RGB(0, 0, 0), 1);
+
+
 			publishImage(image_cropped_pub_, image_cropped, ts_now);
 		}
 
 
-		return;
-	}
-	/*{
-		
-
-
-
-
-
-
 		if(to_record)
 		{
-			if(bbox_xmin > 0 && bbox_ymin > 0 && bbox_xmax < im_width_ && bbox_ymax < im_height_ )
+			if(square_bbox_xmin > 0 && square_bbox_ymin > 0 && square_bbox_xmax < im_width_ && square_bbox_ymax < im_height_ )
 			{
+				myfile_ << counter << " ";
+				myfile_ << (int)((square_bbox_xmin+square_bbox_xmax)/2) << " " << (int)((square_bbox_ymin+square_bbox_ymax)/2) << " ";
+				myfile_ << (float)((square_bbox_xmax-square_bbox_xmin))/200 << " ";
+				for (int j=0;j<8;j++)
+				{
+					myfile_ << keypoints_camera_frame_main_drone[j].x << " " << keypoints_camera_frame_main_drone[j].y << " ";
+				}
+				myfile_ << endl;
+				//TODO print out: counter, center, scale, parts.
 				//static char filename_buffer[100];
 				//static char annotation_buffer[100]; //CHECK DIFFERENCE BETWEEN BOTH
 				
 				//std::vector<int> compression_params;
 				//compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
 				//compression_params.push_back(3);
-				//snprintf(filename_buffer, sizeof(filename_buffer), (root_ + "drone_raw_6/auto_dataset_bag_6_%06d.png").c_str(), record_idx_);
+				//snprintf(filename_buffer, sizeof(filename_buffer), (root_ + "drone_raw_6/auto_dataset_bag_6_%06d.png").c_str(), counter);
 				//std::string file_path = filename_buffer;
 				//cv::imwrite(file_path, image, compression_params);
-				//snprintf(filename_buffer, sizeof(filename_buffer), (root_ + "drone_bbox_6/auto_dataset_bag_6_%06d.png").c_str(), record_idx_);
+				//snprintf(filename_buffer, sizeof(filename_buffer), (root_ + "drone_bbox_6/auto_dataset_bag_6_%06d.png").c_str(), counter);
 				//file_path = filename_buffer;
 				//cv::imwrite(file_path, image_bbox, compression_params);
 
 
-				//snprintf(annotation_buffer, sizeof(annotation_buffer), "auto_dataset_bag_6_%06d.png,0 %.10f %.10f %.10f %.10f", record_idx_, (xmax+xmin)/im_width_/2, (ymax+ymin)/2/im_height_, (xmax-xmin)/im_width_, (ymax-ymin)/im_height_);
+				//snprintf(annotation_buffer, sizeof(annotation_buffer), "auto_dataset_bag_6_%06d.png,0 %.10f %.10f %.10f %.10f", counter, (xmax+xmin)/im_width_/2, (ymax+ymin)/2/im_height_, (xmax-xmin)/im_width_, (ymax-ymin)/im_height_);
 				//std::string annotation_string = annotation_buffer;
 				//myfile_ << annotation_string << "\n";
 
 				//std::cout << "Writing image to:" << file_path << std::endl;
-				//++record_idx_;
+				counter++;
 				
 			}
 		}
 
 		return;
-		
-	}*/
+	}
+	
 
 	bool ImageProcessor::someOdomBufferIsEmpty()
 	{
@@ -481,7 +484,7 @@ namespace image_processor
 
 	ImageProcessor::~ImageProcessor()
 	{
-		std::cout << record_idx_ << " frames have been saved to disk!" << std::endl;
+		std::cout << counter << " frames have been saved to disk!" << std::endl;
 		myfile_.close();
 	}
 

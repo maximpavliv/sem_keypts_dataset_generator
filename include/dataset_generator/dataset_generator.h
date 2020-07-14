@@ -57,7 +57,8 @@ namespace image_processor
             bool first_frame_ready_ = false;
             bool to_record = false;
             string root_;
-            int record_idx_ = 0;
+            string filename_;
+            int counter = 0;
             fstream myfile_;
 
             Eigen::Matrix3d R_cam_world_;
