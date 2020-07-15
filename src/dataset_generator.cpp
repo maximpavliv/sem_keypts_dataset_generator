@@ -231,7 +231,7 @@ namespace image_processor
 
 		if(to_record)
 		{
-			if(square_bbox_xmin > 0 && square_bbox_ymin > 0 && square_bbox_xmax < im_width_ && square_bbox_ymax < im_height_ )
+			if(square_bbox_xmin>=0 && square_bbox_ymin >= 0 && square_bbox_xmax < image.cols && square_bbox_ymax < image.rows)
 			{
 				myfile_ << counter << " ";
 				myfile_ << (int)((square_bbox_xmin+square_bbox_xmax)/2) << " " << (int)((square_bbox_ymin+square_bbox_ymax)/2) << " ";
@@ -261,10 +261,12 @@ namespace image_processor
 				//myfile_ << annotation_string << "\n";
 
 				//std::cout << "Writing image to:" << file_path << std::endl;
-				counter++;
-				
+			
 			}
 		}
+
+		counter++;
+
 
 		return;
 	}
