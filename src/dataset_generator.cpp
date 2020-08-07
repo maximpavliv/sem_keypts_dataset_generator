@@ -261,26 +261,7 @@ namespace image_processor
 				//	H_glasses_main_drone.translation()(0) << " " << H_glasses_main_drone.translation()(1) << " " << H_glasses_main_drone.translation()(2) << endl;
 
 				myfile_ << endl;
-				//TODO print out: counter, center, scale, parts.
-				//static char filename_buffer[100];
-				//static char annotation_buffer[100]; //CHECK DIFFERENCE BETWEEN BOTH
-				
-				//std::vector<int> compression_params;
-				//compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
-				//compression_params.push_back(3);
-				//snprintf(filename_buffer, sizeof(filename_buffer), (root_ + "drone_raw_6/auto_dataset_bag_6_%06d.png").c_str(), counter);
-				//std::string file_path = filename_buffer;
-				//cv::imwrite(file_path, image, compression_params);
-				//snprintf(filename_buffer, sizeof(filename_buffer), (root_ + "drone_bbox_6/auto_dataset_bag_6_%06d.png").c_str(), counter);
-				//file_path = filename_buffer;
-				//cv::imwrite(file_path, image_bbox, compression_params);
 
-
-				//snprintf(annotation_buffer, sizeof(annotation_buffer), "auto_dataset_bag_6_%06d.png,0 %.10f %.10f %.10f %.10f", counter, (xmax+xmin)/im_width_/2, (ymax+ymin)/2/im_height_, (xmax-xmin)/im_width_, (ymax-ymin)/im_height_);
-				//std::string annotation_string = annotation_buffer;
-				//myfile_ << annotation_string << "\n";
-
-				//std::cout << "Writing image to:" << file_path << std::endl;
 				counter++;
 				
 			}
