@@ -178,12 +178,15 @@ namespace image_processor
 		image.copyTo(image_full);
 
 
+		Eigen::Isometry3d H_glasses_main_drone;
 		std::vector<cv::Point2d> keypoints_camera_frame_main_drone;
 		std::vector<double> bbox_limits_main_drone;
 		for(int i=1;i<(int)odometry_buffers.size();i++)
 		{
 			//Compute transform matrix
 			Eigen::Isometry3d H_glasses_drone = objects_H_refs[0].inverse() * objects_H_refs[i];
+			if (i==1)
+				H_glasses_main_drone = H_glasses_drone;
 			
 			cv::Point2d central_point = computeCentralPoint(H_glasses_drone);
 
@@ -240,6 +243,23 @@ namespace image_processor
 				{
 					myfile_ << keypoints_camera_frame_main_drone[j].x << " " << keypoints_camera_frame_main_drone[j].y << " ";
 				}
+				for(int i=0;i<3;i++)
+				{
+					for(int j=0;j<3;j++)
+					{
+						myfile_ << H_glasses_main_drone.linear()(i,j) << " ";
+					}
+				}
+				for(int i=0;i<3;i++)
+				{
+					myfile_ << H_glasses_main_drone.translation()(i) << " ";
+				}
+				//cout << 
+				//	H_glasses_main_drone.linear()(0,0) << " " << H_glasses_main_drone.linear()(0,1) << " " << H_glasses_main_drone.linear()(0,2) << " " << 
+				//	H_glasses_main_drone.linear()(1,0) << " " << H_glasses_main_drone.linear()(1,1) << " " << H_glasses_main_drone.linear()(1,2) << " " << 
+				//	H_glasses_main_drone.linear()(2,0) << " " << H_glasses_main_drone.linear()(2,1) << " " << H_glasses_main_drone.linear()(2,2) << " " << 
+				//	H_glasses_main_drone.translation()(0) << " " << H_glasses_main_drone.translation()(1) << " " << H_glasses_main_drone.translation()(2) << endl;
+
 				myfile_ << endl;
 				//TODO print out: counter, center, scale, parts.
 				//static char filename_buffer[100];
