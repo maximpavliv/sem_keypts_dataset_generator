@@ -1,6 +1,6 @@
 <launch>
   <arg name="to_record" default="true"/>
-  <arg name="root_to_record" default="/home/max/semantic_kpts_dataset/1a1/dragonfly1/1/"/>
+  <arg name="root_to_record" default="/home/oleg/semantic_keypoints_dataset/2a4/dragonfly1/1/"/>
   <arg name="filename" default="annotations.txt"/>
   <arg name="image_topic" default="/gaze/image_resized"/>
   <arg name="odometry_objects" default="[TobiiGlasses, DragonFly1, DragonFly2, DragonFly5]"/>
@@ -16,7 +16,7 @@
 
       <param name="~offset_x" value="0.0"/>
       <param name="~offset_y" value="0.0"/>
-      <param name="~offset_z" value="0.0"/>
+      <param name="~offset_z" value="-0.02"/>
 
       <param name="~offset_roll" value="-0.01"/>
       <param name="~offset_pitch" value="-0.3"/>
