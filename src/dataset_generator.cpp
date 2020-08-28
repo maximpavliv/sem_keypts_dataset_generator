@@ -66,6 +66,11 @@ namespace image_processor
 
 		T_offset_ << offset_x, offset_y, offset_z;
 		R_offset_ = yprToRot(ypr);
+		cout << "R offset:" << endl;
+		cout << R_offset_ << endl;
+		cout << "T offset" << endl;
+		cout << T_offset_ << endl;
+
 		R_cam_world_ = R_cam_world_ * R_offset_;
 
 		keypoints_drone_frame = {Eigen::Vector3d(quad_width_/2,quad_width_/2,quad_height_/2),
@@ -458,6 +463,9 @@ namespace image_processor
 		Rz(1,1) =  c;
 		Rz(2,2) =  1;
 
+		cout << "Rz:" << endl;
+		cout << Rz << endl; 
+
 		Eigen::Matrix<double,3,3> Ry;
 		Ry.setZero();
 		double p = ypr(1,0);
@@ -469,6 +477,9 @@ namespace image_processor
 		Ry(2,2) =  c;
 		Ry(1,1) =  1;
 
+		cout << "Ry:" << endl;
+		cout << Ry << endl;
+
 		Eigen::Matrix<double, 3,3> Rx;
 		Rx.setZero();
 		double r = ypr(2,0);
@@ -479,6 +490,9 @@ namespace image_processor
 		Rx(1,2) = -s;
 		Rx(2,2) =  c;
 		Rx(0,0) =  1;
+
+		cout << "Rx:" << endl;
+		cout << Rx << endl;
 
 		Eigen::Matrix<double, 3,3> R = Rz*Ry*Rx;
 		return R;
