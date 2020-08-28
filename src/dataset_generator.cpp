@@ -462,10 +462,7 @@ namespace image_processor
 		Rz(0,1) = -s;
 		Rz(1,1) =  c;
 		Rz(2,2) =  1;
-
-//		cout << "Rz:" << endl;
-//		cout << Rz << endl; 
-
+//		cout << "Rz:" << endl;		cout << Rz << endl;
 		Eigen::Matrix<double,3,3> Ry;
 		Ry.setZero();
 		double p = ypr(1,0);
@@ -476,10 +473,7 @@ namespace image_processor
 		Ry(0,2) =  s;
 		Ry(2,2) =  c;
 		Ry(1,1) =  1;
-
-//		cout << "Ry:" << endl;
-//		cout << Ry << endl;
-
+//		cout << "Ry:" << endl;		cout << Ry << endl;
 		Eigen::Matrix<double, 3,3> Rx;
 		Rx.setZero();
 		double r = ypr(2,0);
@@ -490,10 +484,7 @@ namespace image_processor
 		Rx(1,2) = -s;
 		Rx(2,2) =  c;
 		Rx(0,0) =  1;
-
-//		cout << "Rx:" << endl;
-//		cout << Rx << endl;
-
+//		cout << "Rx:" << endl;		cout << Rx << endl;
 		Eigen::Matrix<double, 3,3> R = Rz*Ry*Rx;
 		return R;
 	}
